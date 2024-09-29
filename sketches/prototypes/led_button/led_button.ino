@@ -20,10 +20,10 @@ KerbalSimpit mySimpit(Serial);
 #define PIN_TRANSLATION_Y A0
 
 //Define values for the deadzones on the joystick
-#define THC_X_DEADZONE_MIN (511 - 40)
-#define THC_X_DEADZONE_MAX (511 + 40)
-#define THC_Y_DEADZONE_MIN (511 - 40)
-#define THC_Y_DEADZONE_MAX (511 + 40)
+#define THC_X_DEADZONE_MIN (526 - 20)
+#define THC_X_DEADZONE_MAX (526 + 20)
+#define THC_Y_DEADZONE_MIN (535 - 40)
+#define THC_Y_DEADZONE_MAX (535 + 40)
 
 int buttonStateRed = LOW;
 int buttonStateYellow = LOW;
@@ -90,6 +90,7 @@ void loop() {
 
 	// 	delay(100);
 	// }
+  mySimpit.update();
   // Read the state of the switch into a local variable.
   int readingRed = digitalRead(BUTTON_PIN_RED);
   int readingYellow = digitalRead(BUTTON_PIN_YELLOW);
@@ -167,38 +168,51 @@ void loop() {
   lastButtonStateRed = readingRed;
   lastButtonStateYellow = readingYellow;
   lastButtonStateGreen = readingGreen;
+  mySimpit.update();
   int analogInputX = analogRead(PIN_TRANSLATION_X);
-  int translationX = 0;
+  int pitchX = 0;
   //Map the analog input to it's according value between the min/max and the deadzone. Leave it 0 when in the deadzone
   if (analogInputX < THC_X_DEADZONE_MIN) {
-    translationX = map(analogInputX, 0, THC_X_DEADZONE_MIN,      INT16_MIN, 0);
+    pitchX = map(analogInputX, 0, THC_X_DEADZONE_MIN,      INT16_MIN, 0);
   } else if(analogInputX > THC_X_DEADZONE_MAX) {
-    translationX = map(analogInputX, THC_X_DEADZONE_MAX, 1023,   0, INT16_MAX);
+    pitchX = map(analogInputX, THC_X_DEADZONE_MAX, 1023,   0, INT16_MAX);
   }
+  // if (analogInputX < THC_X_DEADZONE_MIN or analogInputX > THC_X_DEADZONE_MAX) {
+  //   pitchX = map(analogInputX, 0, 1023, INT16_MIN, INT16_MAX);
+  // }
   int analogInputY = analogRead(PIN_TRANSLATION_Y);
-  int translationY = 0;
+  int yawY = 0;
   
   //Map the analog input to it's according value between the min/max and the deadzone. Leave it 0 when in the deadzone
   if (analogInputY < THC_Y_DEADZONE_MIN) {
-    translationY = map(analogInputY, 0, THC_Y_DEADZONE_MIN,      INT16_MIN, 0);
+    yawY = map(analogInputY, 0, THC_Y_DEADZONE_MIN,      INT16_MIN, 0);
   } else if(analogInputY > THC_Y_DEADZONE_MAX) {
-    translationY = map(analogInputY, THC_Y_DEADZONE_MAX, 1023,   0, INT16_MAX);
+    yawY = map(analogInputY, THC_Y_DEADZONE_MAX, 1023,   0, INT16_MAX);
   }
+  // if (analogInputY < THC_Y_DEADZONE_MIN or analogInputY > THC_Y_DEADZONE_MAX) {
+  //   yawY = map(analogInputY, 0, 1023, INT16_MIN, INT16_MAX);
+  // }
   int translationZ = 0;
 
-  translationMessage translation_msg;
-  translation_msg.setX(translationX);
-  translation_msg.setY(translationY);
-  translation_msg.setZ(translationZ);
-  mySimpit.send(TRANSLATION_MESSAGE, translation_msg);
+  rotationMessage rotation_msg;
+  rotation_msg.setPitch(yawY);
+  rotation_msg.setYaw(yawY);
+  rotation_msg.setRoll(0);
+  mySimpit.send(ROTATION_MESSAGE, rotation_msg);
+  // translation_msg.setX(translationX);
+  // translation_msg.setY(translationY);
+  // translation_msg.setZ(translationZ);
+  // mySimpit.send(TRANSLATION_MESSAGE, translation_msg);
   // Check for new serial messages.
   mySimpit.update();
-  if (translationX > 0) {
-    mySimpit.printToKSP(String(translationX), PRINT_TO_SCREEN);
-  }
-  if (translationY > 0) {
-    mySimpit.printToKSP(String(translationY), PRINT_TO_SCREEN);
-  }
+  // if (translationX > 0) {
+  //   mySimpit.printToKSP("X:", PRINT_TO_SCREEN);
+  //   mySimpit.printToKSP(String(translationX), PRINT_TO_SCREEN);
+  // }
+  // if (translationY > 0) {
+  //   mySimpit.printToKSP("Y:", PRINT_TO_SCREEN);
+  //   mySimpit.printToKSP(String(translationY), PRINT_TO_SCREEN);
+  // }
 }
 
 void messageHandler(byte messageType, byte msg[], byte msgSize) {
