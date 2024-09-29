@@ -20,10 +20,10 @@ KerbalSimpit mySimpit(Serial);
 #define PIN_TRANSLATION_Y A0
 
 //Define values for the deadzones on the joystick
-#define THC_X_DEADZONE_MIN (511 - 20)
-#define THC_X_DEADZONE_MAX (511 + 20)
-#define THC_Y_DEADZONE_MIN (511 - 20)
-#define THC_Y_DEADZONE_MAX (511 + 20)
+#define THC_X_DEADZONE_MIN (511 - 40)
+#define THC_X_DEADZONE_MAX (511 + 40)
+#define THC_Y_DEADZONE_MIN (511 - 40)
+#define THC_Y_DEADZONE_MAX (511 + 40)
 
 int buttonStateRed = LOW;
 int buttonStateYellow = LOW;
@@ -167,17 +167,23 @@ void loop() {
   lastButtonStateRed = readingRed;
   lastButtonStateYellow = readingYellow;
   lastButtonStateGreen = readingGreen;
-  int analogInput = analogRead(PIN_TRANSLATION_X);
+  int analogInputX = analogRead(PIN_TRANSLATION_X);
   int translationX = 0;
   //Map the analog input to it's according value between the min/max and the deadzone. Leave it 0 when in the deadzone
-  if     (analogInput < THC_X_DEADZONE_MIN) translationX = map(analogInput, 0, THC_X_DEADZONE_MIN,      INT16_MIN, 0);
-  else if(analogInput > THC_X_DEADZONE_MAX) translationX = map(analogInput, THC_X_DEADZONE_MAX, 1023,   0, INT16_MAX);
-  
-  analogInput = analogRead(PIN_TRANSLATION_Y);
+  if (analogInputX < THC_X_DEADZONE_MIN) {
+    translationX = map(analogInputX, 0, THC_X_DEADZONE_MIN,      INT16_MIN, 0);
+  } else if(analogInputX > THC_X_DEADZONE_MAX) {
+    translationX = map(analogInputX, THC_X_DEADZONE_MAX, 1023,   0, INT16_MAX);
+  }
+  int analogInputY = analogRead(PIN_TRANSLATION_Y);
   int translationY = 0;
+  
   //Map the analog input to it's according value between the min/max and the deadzone. Leave it 0 when in the deadzone
-  if     (analogInput < THC_Y_DEADZONE_MIN) translationY = map(analogInput, 0, THC_Y_DEADZONE_MIN,      INT16_MIN, 0);
-  else if(analogInput > THC_Y_DEADZONE_MAX) translationY = map(analogInput, THC_Y_DEADZONE_MAX, 1023,   0, INT16_MAX);
+  if (analogInputY < THC_Y_DEADZONE_MIN) {
+    translationY = map(analogInputY, 0, THC_Y_DEADZONE_MIN,      INT16_MIN, 0);
+  } else if(analogInputY > THC_Y_DEADZONE_MAX) {
+    translationY = map(analogInputY, THC_Y_DEADZONE_MAX, 1023,   0, INT16_MAX);
+  }
   int translationZ = 0;
 
   translationMessage translation_msg;
@@ -187,6 +193,12 @@ void loop() {
   mySimpit.send(TRANSLATION_MESSAGE, translation_msg);
   // Check for new serial messages.
   mySimpit.update();
+  if (translationX > 0) {
+    mySimpit.printToKSP(String(translationX), PRINT_TO_SCREEN);
+  }
+  if (translationY > 0) {
+    mySimpit.printToKSP(String(translationY), PRINT_TO_SCREEN);
+  }
 }
 
 void messageHandler(byte messageType, byte msg[], byte msgSize) {
