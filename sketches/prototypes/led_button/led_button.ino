@@ -10,12 +10,21 @@
 // Declare a KerbalSimpit object that will
 // communicate using the "Serial" device.
 KerbalSimpit mySimpit(Serial);
-const int ledPinRed = 2;  // the number of the red LED pin
-const int ledPinYellow = 7;  // the number of the yellow LED pin
-const int ledPinGreen = 8;  // the number of the green LED pin
-const int buttonPinRed = 4;
-const int buttonPinYellow = 13;
-const int buttonPinGreen = 12;
+#define LED_PIN_RED 2  // the number of the red LED pin
+#define LED_PIN_YELLOW 7  // the number of the yellow LED pin
+#define LED_PIN_GREEN 8  // the number of the green LED pin
+#define BUTTON_PIN_RED 4
+#define BUTTON_PIN_YELLOW 13
+#define BUTTON_PIN_GREEN 12
+#define PIN_TRANSLATION_X A2
+#define PIN_TRANSLATION_Y A0
+
+//Define values for the deadzones on the joystick
+#define THC_X_DEADZONE_MIN (511 - 20)
+#define THC_X_DEADZONE_MAX (511 + 20)
+#define THC_Y_DEADZONE_MIN (511 - 20)
+#define THC_Y_DEADZONE_MAX (511 + 20)
+
 int buttonStateRed = LOW;
 int buttonStateYellow = LOW;
 int buttonStateGreen = LOW;
@@ -41,12 +50,14 @@ void setup() {
   // Set up the build in LED, and turn it on.
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, HIGH);
-  pinMode(ledPinRed, OUTPUT);
-  pinMode(ledPinYellow, OUTPUT);
-  pinMode(ledPinGreen, OUTPUT);
-  pinMode(buttonPinRed, INPUT_PULLUP);
-  pinMode(buttonPinYellow, INPUT_PULLUP);
-  pinMode(buttonPinGreen, INPUT_PULLUP);
+  pinMode(LED_PIN_RED, OUTPUT);
+  pinMode(LED_PIN_YELLOW, OUTPUT);
+  pinMode(LED_PIN_GREEN, OUTPUT);
+  pinMode(BUTTON_PIN_RED, INPUT_PULLUP);
+  pinMode(BUTTON_PIN_YELLOW, INPUT_PULLUP);
+  pinMode(BUTTON_PIN_GREEN, INPUT_PULLUP);
+  // pinMode(PIN_TRANSLATION_X, INPUT);
+	// pinMode(PIN_TRANSLATION_Y, INPUT);
   // This loop continually attempts to handshake with the plugin.
   // It will keep retrying until it gets a successful handshake.
   while (!mySimpit.init()) {
@@ -66,15 +77,23 @@ void setup() {
 }
 
 void loop() {
-  // Check for new serial messages.
-  mySimpit.update();
-}
+  // while(true)
+	// {
+  //   int sensorValue = 0; // up and down value
+  //   int sensorValue1 = 0; // left and right value
+  //   sensorValue = analogRead(PIN_TRANSLATION_X); // read pin A0
+  //   sensorValue1 = analogRead(PIN_TRANSLATION_Y); // read pin A1
+	// 	Serial.print("sensorx = "); // present in serial monitor up and down value
+  //   Serial.println(sensorValue);
+  //   Serial.print("sensory = "); // present in serial monitor left and right value
+  //   Serial.println(sensorValue1);
 
-void messageHandler(byte messageType, byte msg[], byte msgSize) {
+	// 	delay(100);
+	// }
   // Read the state of the switch into a local variable.
-  int readingRed = digitalRead(buttonPinRed);
-  int readingYellow = digitalRead(buttonPinYellow);
-  int readingGreen = digitalRead(buttonPinGreen);
+  int readingRed = digitalRead(BUTTON_PIN_RED);
+  int readingYellow = digitalRead(BUTTON_PIN_YELLOW);
+  int readingGreen = digitalRead(BUTTON_PIN_GREEN);
   // If the switch changed, due to noise or pressing:
   if (readingRed != lastButtonStateRed) {
     // reset the debouncing timer
@@ -118,7 +137,7 @@ void messageHandler(byte messageType, byte msg[], byte msgSize) {
         // Send a message to the plugin activating the Stage
         // action group. The plugin will then activate the
         // next stage.
-        mySimpit.activateAction(LIGHT_ACTION);
+        mySimpit.toggleAction(LIGHT_ACTION);
       }
     }
   }
@@ -141,13 +160,36 @@ void messageHandler(byte messageType, byte msg[], byte msgSize) {
         // Send a message to the plugin activating the Stage
         // action group. The plugin will then activate the
         // next stage.
-        mySimpit.activateAction(SAS_ACTION);
+        mySimpit.toggleAction(SAS_ACTION);
       }
     }
   }
   lastButtonStateRed = readingRed;
   lastButtonStateYellow = readingYellow;
   lastButtonStateGreen = readingGreen;
+  int analogInput = analogRead(PIN_TRANSLATION_X);
+  int translationX = 0;
+  //Map the analog input to it's according value between the min/max and the deadzone. Leave it 0 when in the deadzone
+  if     (analogInput < THC_X_DEADZONE_MIN) translationX = map(analogInput, 0, THC_X_DEADZONE_MIN,      INT16_MIN, 0);
+  else if(analogInput > THC_X_DEADZONE_MAX) translationX = map(analogInput, THC_X_DEADZONE_MAX, 1023,   0, INT16_MAX);
+  
+  analogInput = analogRead(PIN_TRANSLATION_Y);
+  int translationY = 0;
+  //Map the analog input to it's according value between the min/max and the deadzone. Leave it 0 when in the deadzone
+  if     (analogInput < THC_Y_DEADZONE_MIN) translationY = map(analogInput, 0, THC_Y_DEADZONE_MIN,      INT16_MIN, 0);
+  else if(analogInput > THC_Y_DEADZONE_MAX) translationY = map(analogInput, THC_Y_DEADZONE_MAX, 1023,   0, INT16_MAX);
+  int translationZ = 0;
+
+  translationMessage translation_msg;
+  translation_msg.setX(translationX);
+  translation_msg.setY(translationY);
+  translation_msg.setZ(translationZ);
+  mySimpit.send(TRANSLATION_MESSAGE, translation_msg);
+  // Check for new serial messages.
+  mySimpit.update();
+}
+
+void messageHandler(byte messageType, byte msg[], byte msgSize) {
   switch(messageType) {
   case ALTITUDE_MESSAGE:
     // Checking if the message is the size we expect is a very basic
@@ -160,17 +202,17 @@ void messageHandler(byte messageType, byte msg[], byte msgSize) {
       // Turn the LED on if the vessel is higher than 500 metres
       // above sea level. Otherwise turn it off.
       if (myAltitude.sealevel < 5000) {
-        digitalWrite(ledPinRed, HIGH);
-        digitalWrite(ledPinYellow, LOW);
-        digitalWrite(ledPinGreen, LOW);
+        digitalWrite(LED_PIN_RED, HIGH);
+        digitalWrite(LED_PIN_YELLOW, LOW);
+        digitalWrite(LED_PIN_GREEN, LOW);
       } else if ((myAltitude.sealevel >= 5000) && (myAltitude.sealevel < 70000)) {
-        digitalWrite(ledPinRed, LOW);
-        digitalWrite(ledPinYellow, HIGH);
-        digitalWrite(ledPinGreen, LOW);
+        digitalWrite(LED_PIN_RED, LOW);
+        digitalWrite(LED_PIN_YELLOW, HIGH);
+        digitalWrite(LED_PIN_GREEN, LOW);
       } else if (myAltitude.sealevel >= 70000) {
-        digitalWrite(ledPinRed, LOW);
-        digitalWrite(ledPinYellow, LOW);
-        digitalWrite(ledPinGreen, HIGH);
+        digitalWrite(LED_PIN_RED, LOW);
+        digitalWrite(LED_PIN_YELLOW, LOW);
+        digitalWrite(LED_PIN_GREEN, HIGH);
       }
     }
     break;
