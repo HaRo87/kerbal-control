@@ -16,14 +16,16 @@ KerbalSimpit mySimpit(Serial);
 #define BUTTON_PIN_RED 4
 #define BUTTON_PIN_YELLOW 13
 #define BUTTON_PIN_GREEN 12
-#define PIN_TRANSLATION_X A2
-#define PIN_TRANSLATION_Y A0
+#define PIN_TRANSLATION_X A0
+#define PIN_TRANSLATION_Y A2
 
 //Define values for the deadzones on the joystick
 #define THC_X_DEADZONE_MIN (526 - 20)
 #define THC_X_DEADZONE_MAX (526 + 20)
 #define THC_Y_DEADZONE_MIN (535 - 40)
 #define THC_Y_DEADZONE_MAX (535 + 40)
+#define DEADZONE 3000
+#define MAX_VOLT 1019
 
 int buttonStateRed = LOW;
 int buttonStateYellow = LOW;
@@ -170,34 +172,36 @@ void loop() {
   lastButtonStateGreen = readingGreen;
   mySimpit.update();
   int analogInputX = analogRead(PIN_TRANSLATION_X);
+  // if (analogInputX > MAX_VOLT){analogInputX=MAX_VOLT;}
   int pitchX = 0;
+  // pitchX = map(analogInputX, 0, MAX_VOLT, -32768, 32767);
   //Map the analog input to it's according value between the min/max and the deadzone. Leave it 0 when in the deadzone
-  if (analogInputX < THC_X_DEADZONE_MIN) {
-    pitchX = map(analogInputX, 0, THC_X_DEADZONE_MIN,      INT16_MIN, 0);
-  } else if(analogInputX > THC_X_DEADZONE_MAX) {
-    pitchX = map(analogInputX, THC_X_DEADZONE_MAX, 1023,   0, INT16_MAX);
-  }
-  // if (analogInputX < THC_X_DEADZONE_MIN or analogInputX > THC_X_DEADZONE_MAX) {
-  //   pitchX = map(analogInputX, 0, 1023, INT16_MIN, INT16_MAX);
+  // if (analogInputX < THC_X_DEADZONE_MIN) {
+  //   pitchX = map(analogInputX, THC_X_DEADZONE_MAX, 1023,   0, INT16_MAX);
+  // } else if(analogInputX > THC_X_DEADZONE_MAX) {
+  //   pitchX = map(analogInputX, 0, THC_X_DEADZONE_MIN,      INT16_MIN, 0);
   // }
+  if (analogInputX < THC_X_DEADZONE_MIN or analogInputX > THC_X_DEADZONE_MAX) {
+    pitchX = map(analogInputX, 0, 1023, INT16_MIN, INT16_MAX);
+  }
   int analogInputY = analogRead(PIN_TRANSLATION_Y);
   int yawY = 0;
-  
   //Map the analog input to it's according value between the min/max and the deadzone. Leave it 0 when in the deadzone
-  if (analogInputY < THC_Y_DEADZONE_MIN) {
-    yawY = map(analogInputY, 0, THC_Y_DEADZONE_MIN,      INT16_MIN, 0);
-  } else if(analogInputY > THC_Y_DEADZONE_MAX) {
-    yawY = map(analogInputY, THC_Y_DEADZONE_MAX, 1023,   0, INT16_MAX);
-  }
-  // if (analogInputY < THC_Y_DEADZONE_MIN or analogInputY > THC_Y_DEADZONE_MAX) {
-  //   yawY = map(analogInputY, 0, 1023, INT16_MIN, INT16_MAX);
+  // if (analogInputY < THC_Y_DEADZONE_MIN) {
+  //   yawY = map(analogInputY, 0, THC_Y_DEADZONE_MIN,      INT16_MIN, 0);
+  // } else if(analogInputY > THC_Y_DEADZONE_MAX) {
+  //   yawY = map(analogInputY, THC_Y_DEADZONE_MAX, 1023,   0, INT16_MAX);
   // }
+  if (analogInputY < THC_Y_DEADZONE_MIN or analogInputY > THC_Y_DEADZONE_MAX) {
+    yawY = map(analogInputY, 0, 1023, INT16_MIN, INT16_MAX);
+  }
   int translationZ = 0;
 
   rotationMessage rotation_msg;
-  rotation_msg.setPitch(yawY);
+  rotation_msg.setPitch(pitchX);
   rotation_msg.setYaw(yawY);
   rotation_msg.setRoll(0);
+  rotation_msg.mask = 5;
   mySimpit.send(ROTATION_MESSAGE, rotation_msg);
   // translation_msg.setX(translationX);
   // translation_msg.setY(translationY);
@@ -242,5 +246,13 @@ void messageHandler(byte messageType, byte msg[], byte msgSize) {
       }
     }
     break;
+  }
+}
+
+int deadZone(int input){
+  if (input > 3000 or input < -3000){
+    return input;
+  } else {
+    return 0;
   }
 }
